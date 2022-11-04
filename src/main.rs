@@ -1,12 +1,12 @@
 use chrono::DateTime;
 use filetime::{self, FileTime};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::fs;
+use std::fs::{self, File};
 use std::io::{Read, Write};
 
 const WEEKLY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip";
 
-fn main() {
+fn download_file() -> Result<File, ()> {
     let resp = ureq::get(WEEKLY_DUMP_URL)
         .call()
         .expect("Error downloading file");
@@ -35,7 +35,7 @@ fn main() {
         match (mtime.seconds() >= last_modified, file_metadata.len() == len) {
             (true, true) => {
                 println!("File already downloaded");
-                return;
+                return Ok(File::open(output_file_name).expect("Error opening file"));
             }
             (true, false) => {
                 println!("File already downloaded, but is incomplete");
@@ -79,5 +79,66 @@ fn main() {
         }
     }
 
+    output_file.flush().expect("Error flushing output file");
     progress_bar.finish();
+
+    Ok(output_file)
+}
+
+fn unzip_file(zip_file: File) -> Result<(), ()> {
+    let mut archive = zip::ZipArchive::new(zip_file).expect("Error opening zip archive");
+
+    let progress_bar = ProgressBar::new(archive.len().try_into().unwrap());
+    // progress_bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(1));
+    progress_bar.set_message("");
+    progress_bar.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed}+{eta}/{duration}] [{bar:40.cyan/blue}] {human_pos}/{human_len} {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+
+    for i in 0..archive.len() {
+        let mut file = archive
+            .by_index(i)
+            .expect("Error getting file from archive");
+        let unzip_path = match file.enclosed_name() {
+            Some(path) => path.to_owned(),
+            None => continue,
+        };
+        progress_bar.set_message(format!("{}", unzip_path.display()));
+
+        if (*file.name()).ends_with('/') {
+            fs::create_dir_all(&unzip_path).expect("Error creating directory");
+        } else {
+            if let Some(p) = unzip_path.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(p).expect("Error creating directory");
+                }
+            }
+            let mut unzip_file = fs::File::create(&unzip_path).expect("Error creating file");
+            std::io::copy(&mut file, &mut unzip_file).expect("Error copying file");
+        }
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            if let Some(mode) = file.unix_mode() {
+                fs::set_permissions(&unzip_path, fs::Permissions::from_mode(mode)).unwrap();
+            }
+        }
+        // TODO: Also set and check file mtime
+        progress_bar.set_position((i + 1).try_into().unwrap());
+    }
+
+    progress_bar.finish();
+    Ok(())
+}
+
+fn main() {
+    let output_file = download_file().expect("Error downloading file");
+
+    unzip_file(output_file).expect("Error unzipping file");
 }
