@@ -51,7 +51,6 @@ fn main() {
     let mut output_file = fs::File::create(output_file_name).expect("Error creating output file");
 
     let mut reader = resp.into_reader();
-    let mut buffer = Vec::new();
     let chunk_size = len / 99;
 
     let progress_bar = ProgressBar::new(len);
@@ -59,7 +58,7 @@ fn main() {
     progress_bar.set_message(output_file_name);
     progress_bar.set_style(
         ProgressStyle::with_template(
-            "[{elapsed}+{eta}/{duration}] {bar:40.cyan/blue} {bytes}/{total_bytes} ({bytes_per_sec}) {msg}",
+            "[{elapsed}+{eta}/{duration}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}) {msg}",
         )
         .unwrap()
         .progress_chars("#>-"),
@@ -70,7 +69,10 @@ fn main() {
         let bytes_read = reader.read(&mut chunk[..]).expect("Error reading chunk");
         chunk.truncate(bytes_read); // This way we don't end with a ton of leading 0s
         if bytes_read > 0 {
-            buffer.extend(chunk);
+            output_file
+                .write_all(chunk.as_slice())
+                .expect("Error writing to output file");
+
             progress_bar.inc(bytes_read as u64);
         } else {
             break;
@@ -78,8 +80,4 @@ fn main() {
     }
 
     progress_bar.finish();
-
-    output_file
-        .write_all(buffer.as_slice())
-        .expect("Error writing to output file");
 }
