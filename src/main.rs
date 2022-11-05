@@ -1,10 +1,50 @@
 use chrono::DateTime;
 use filetime::{self, FileTime};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use serde::Deserialize;
+use sqlx::sqlite::SqlitePool;
+use sqlx::{Executor, Pool, Sqlite, Statement};
 use std::fs::{self, File};
 use std::io::{Read, Write};
+use std::sync::Arc;
 
 const WEEKLY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip";
+const INSERT_ENTRY_SQL: &str = r"INSERT INTO entities (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, entity_type, licensee_id, entity_name, first_name, mi, last_name, suffix, phone, fax, email, street_address, city, state, zip_code, po_box, attention_line, sgin, frn, applicant_type_code, applicant_type_other, status_code, status_date, lic_category_code, linked_license_id, linked_callsign) VALUES ('EN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+#[allow(dead_code, non_snake_case)]
+#[derive(Deserialize, Debug)]
+struct Entity<'a> {
+    pub RecordType: &'a str,
+    pub UniqueSystemIdentifier: u32,
+    pub UlsFileNumber: &'a str,
+    pub EBFNumber: &'a str,
+    pub CallSign: &'a str,
+    pub EntityType: &'a str,
+    pub LicenseeId: &'a str,
+    pub EntityName: &'a str,
+    pub FirstName: &'a str,
+    pub MiddleInitial: &'a str,
+    pub LastName: &'a str,
+    pub Suffix: &'a str,
+    pub Phone: &'a str,
+    pub Fax: &'a str,
+    pub Email: &'a str,
+    pub StreetAddress: &'a str,
+    pub City: &'a str,
+    pub State: &'a str,
+    pub ZipCode: &'a str,
+    pub POBox: &'a str,
+    pub AttentionLine: &'a str,
+    pub SGIN: &'a str,
+    pub FRN: &'a str,
+    pub ApplicantTypeCode: &'a str,
+    pub ApplicantTypeCodeOther: &'a str,
+    pub StatusCode: &'a str,
+    pub StatusDate: &'a str,
+    pub ThreePointSevenGhzLicenseType: &'a str,
+    pub LinkedUniqueSystemIdentifier: &'a str,
+    pub LinkedCallsign: &'a str,
+}
 
 fn download_file() -> Result<File, ()> {
     let resp = ureq::get(WEEKLY_DUMP_URL)
@@ -137,8 +177,72 @@ fn unzip_file(zip_file: File) -> Result<(), ()> {
     Ok(())
 }
 
-fn main() {
-    let output_file = download_file().expect("Error downloading file");
+async fn load_entries(db: Pool<Sqlite>) {
+    let entries_file = File::open("EN.dat").expect("Error opening file");
+    let entries_file_meta = fs::metadata("EN.dat").expect("Error getting file metadata");
+    let mut transaction = db.begin().await.expect("Error starting transaction");
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .delimiter(b'|')
+        .quoting(false)
+        .from_reader(entries_file);
 
-    unzip_file(output_file).expect("Error unzipping file");
+    // let statement = sqlx::query(INSERT_ENTRY_SQL);
+
+    for entry in reader.records() {
+        let entry = entry.expect("Error reading entry");
+        let entity: Entity = entry.deserialize(None).expect("Error deserializing entry");
+        let statement = sqlx::query(INSERT_ENTRY_SQL);
+        statement
+            .bind(entity.UniqueSystemIdentifier)
+            .bind(entity.UlsFileNumber)
+            .bind(entity.EBFNumber)
+            .bind(entity.CallSign)
+            .bind(entity.EntityType)
+            .bind(entity.LicenseeId)
+            .bind(entity.EntityName)
+            .bind(entity.FirstName)
+            .bind(entity.MiddleInitial)
+            .bind(entity.LastName)
+            .bind(entity.Suffix)
+            .bind(entity.Phone)
+            .bind(entity.Fax)
+            .bind(entity.Email)
+            .bind(entity.StreetAddress)
+            .bind(entity.City)
+            .bind(entity.State)
+            .bind(entity.ZipCode)
+            .bind(entity.POBox)
+            .bind(entity.AttentionLine)
+            .bind(entity.SGIN)
+            .bind(entity.FRN)
+            .bind(entity.ApplicantTypeCode)
+            .bind(entity.ApplicantTypeCodeOther)
+            .bind(entity.StatusCode)
+            .bind(entity.StatusDate)
+            .bind(entity.ThreePointSevenGhzLicenseType)
+            .bind(entity.LinkedUniqueSystemIdentifier)
+            .bind(entity.LinkedCallsign)
+            .execute(&mut transaction)
+            .await
+            .expect("Error executing statement");
+        // println!("{:?}", entity);
+    }
+
+    transaction
+        .commit()
+        .await
+        .expect("Error committing transaction");
+}
+
+#[tokio::main]
+async fn main() {
+    // let output_file = download_file().expect("Error downloading file");
+
+    // unzip_file(output_file).expect("Error unzipping file");
+
+    let db = SqlitePool::connect("sqlite://fcc.db")
+        .await
+        .expect("Error connecting to database");
+    load_entries(db).await;
 }
