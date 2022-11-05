@@ -3,8 +3,38 @@ CREATE TABLE migrations (
   name VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE amateurs (
+  record_type varchar(2) not null default 'AM',
+  unique_system_identifier integer not null,
+  uls_file_number varchar(14),
+  ebf_number varchar(30),
+  call_sign varchar(10),
+  operator_class varchar(1),
+  group_code varchar(1),
+  region_code integer,
+  trustee_call_sign varchar(10),
+  trustee_indicator varchar(1),
+  physician_certification varchar(1),
+  ve_signature varchar(1),
+  systematic_call_sign_change varchar(1),
+  vanity_call_sign_change varchar(1),
+  vainty_relationship varchar(1),
+  previous_call_sign varchar(10),
+  previous_operator_class varchar(1),
+  trustee_name varchar(50)
+);
+CREATE TABLE comments (
+  record_type varchar(2) not null default "CO",
+  unique_system_identifier integer not null,
+  uls_file_number varchar(14),
+  call_sign varchar(10),
+  comment_date datetime,
+  description varchar(255),
+  status_code varchar(1),
+  status_date datetime
+);
 CREATE TABLE entities (
-  record_type varchar(2) not null,
+  record_type varchar(2) not null default 'EN',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
   ebf_number varchar(30),
@@ -34,6 +64,109 @@ CREATE TABLE entities (
   lic_category_code varchar(1),
   linked_license_id integer null,
   linked_callsign varchar(10)
+);
+CREATE TABLE headers (
+  record_type varchar(2) not null default 'HD',
+  unique_system_identifier integer not null,
+  uls_file_number varchar(14),
+  ebf_number varchar(30),
+  call_sign varchar(10),
+  license_status varchar(1),
+  radio_service_code varchar(2),
+  grant_date datetime,
+  expired_date datetime,
+  cancellation_date datetime,
+  eligibility_rule_number varchar(10),
+  reserved varchar(1),
+  alien varchar(1),
+  alien_government varchar(1),
+  alien_corporation varchar(1),
+  alien_officer varchar(1),
+  alien_control varchar(1),
+  revoked varchar(1),
+  convicted varchar(1),
+  adjudged varchar(1),
+  reserved2 varchar(1),
+  common_carrier varchar(1),
+  non_common_carrier varchar(1),
+  private_comm varchar(1),
+  fixed varchar(1),
+  mobile varchar(1),
+  radiolocation varchar(1),
+  satellite varchar(1),
+  developmental_or_sta varchar(1),
+  interconnected_service varchar(1),
+  certifier_first_name varchar(20),
+  certifier_mi varchar(1),
+  certifier_last_name varchar(20),
+  certifier_suffix varchar(3),
+  certifier_title varchar(40),
+  gender varchar(1),
+  african_american varchar(1),
+  native_american varchar(1),
+  hawaiian varchar(1),
+  asian varchar(1),
+  white varchar(1),
+  ethnicity varchar(1),
+  effective_date datetime,
+  last_action_date datetime,
+  auction_id integer,
+  reg_stat_broad_serv varchar(1),
+  band_manager varchar(1),
+  type_serv_broad_serv varchar(1),
+  alien_ruling varchar(1),
+  licensee_name_change varchar(1),
+  whitespace_ind varchar(1),
+  additional_cert_choice varchar(1),
+  additional_cert_answer varchar(1),
+  discontinuation_ind varchar(1),
+  regulatory_compliance_ind varchar(1),
+  eligibility_cert_900 varchar(1),
+  transition_plan_cert_900 varchar(1),
+  return_spectrum_cert_900 varchar(1),
+  payment_cert_900 varchar(1)
+);
+CREATE TABLE history (
+  record_type varchar(2) not null default 'HS',
+  unique_system_identifier integer not null,
+  uls_file_number varchar(14),
+  call_sign varchar(10),
+  log_date datetime,
+  code varchar(6)
+);
+CREATE TABLE license_attachments (
+  record_type varchar(2) not null default 'LA',
+  unique_system_identifier integer not null,
+  call_sign varchar(10),
+  attachment_code varchar(1),
+  attachment_description varchar(60),
+  attachment_date datetime,
+  attachment_file_name varchar(60),
+  action_performed varchar(1)
+);
+CREATE TABLE special_conditions (
+  record_type varchar(2) not null default 'SC',
+  unique_system_identifier integer not null,
+  uls_file_number varchar(14),
+  ebf_number varchar(30),
+  call_sign varchar(10),
+  special_conditions_type varchar(1),
+  special_conditions_code integer,
+  status_code varchar(1),
+  status_date datetime
+);
+CREATE TABLE special_conditions_free_form (
+  record_type varchar(2) not null default 'SF',
+  unique_system_identifier integer not null,
+  uls_file_number varchar(14),
+  ebf_number varchar(30),
+  call_sign varchar(10),
+  license_free_form_type varchar(1),
+  unique_license_free_form_identifier varchar(10),
+  sequence_number integer,
+  license_free_form_condition varchar(255),
+  status_code varchar(1),
+  status_date datetime
 );
 INSERT INTO migrations (name)
 VALUES ('01-create-db.sql');
