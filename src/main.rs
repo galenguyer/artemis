@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::sync::Arc;
 
 const WEEKLY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip";
-const INSERT_ENTRY_SQL: &str = r"INSERT INTO entities (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, entity_type, licensee_id, entity_name, first_name, mi, last_name, suffix, phone, fax, email, street_address, city, state, zip_code, po_box, attention_line, sgin, frn, applicant_type_code, applicant_type_other, status_code, status_date, lic_category_code, linked_license_id, linked_callsign) VALUES ('EN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+const INSERT_ENTITY_SQL: &str = r"INSERT INTO entities (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, entity_type, licensee_id, entity_name, first_name, mi, last_name, suffix, phone, fax, email, street_address, city, state, zip_code, po_box, attention_line, sgin, frn, applicant_type_code, applicant_type_other, status_code, status_date, lic_category_code, linked_license_id, linked_callsign) VALUES ('EN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 #[allow(dead_code, non_snake_case)]
 #[derive(Deserialize, Debug)]
@@ -177,22 +177,22 @@ fn unzip_file(zip_file: File) -> Result<(), ()> {
     Ok(())
 }
 
-async fn load_entries(db: Pool<Sqlite>) {
-    let entries_file = File::open("EN.dat").expect("Error opening file");
-    let entries_file_meta = fs::metadata("EN.dat").expect("Error getting file metadata");
+async fn load_entities(db: Pool<Sqlite>) {
+    let entities_file = File::open("EN.dat").expect("Error opening file");
+    let entities_file_meta = fs::metadata("EN.dat").expect("Error getting file metadata");
     let mut transaction = db.begin().await.expect("Error starting transaction");
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .delimiter(b'|')
         .quoting(false)
-        .from_reader(entries_file);
+        .from_reader(entities_file);
 
     // let statement = sqlx::query(INSERT_ENTRY_SQL);
 
-    for entry in reader.records() {
-        let entry = entry.expect("Error reading entry");
-        let entity: Entity = entry.deserialize(None).expect("Error deserializing entry");
-        let statement = sqlx::query(INSERT_ENTRY_SQL);
+    for line in reader.records() {
+        let line = line.expect("Error reading entry");
+        let entity: Entity = line.deserialize(None).expect("Error deserializing entry");
+        let statement = sqlx::query(INSERT_ENTITY_SQL);
         statement
             .bind(entity.UniqueSystemIdentifier)
             .bind(entity.UlsFileNumber)
@@ -244,5 +244,5 @@ async fn main() {
     let db = SqlitePool::connect("sqlite://fcc.db")
         .await
         .expect("Error connecting to database");
-    load_entries(db).await;
+    load_entities(db).await;
 }
