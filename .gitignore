@@ -4,3 +4,4 @@
 *.dat
 counts
 *.db
+*.db.zst

@@ -1,4 +1,4 @@
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDate};
 use filetime::{self, FileTime};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use regex::Regex;
@@ -18,6 +18,53 @@ const INSERT_HISTORY_SQL: &str = r"INSERT INTO history (record_type, unique_syst
 const INSERT_LICENSE_ATTACHMENT_SQL: &str = r"INSERT INTO license_attachments (record_type, unique_system_identifier, call_sign, attachment_code, attachment_description, attachment_date, attachment_file_name, action_performed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 const INSERT_SPECIAL_CONDITION_SQL: &str = r"INSERT INTO special_conditions (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, special_conditions_type, special_conditions_code, status_code, status_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 const INSERT_SPECIAL_CONDITION_FREE_FORM_SQL: &str = r"INSERT INTO special_conditions_free_form (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, license_free_form_type, unique_license_free_form_identifier, sequence_number, license_free_form_condition, status_code, status_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+#[allow(dead_code)]
+mod fcc_date {
+    use chrono::NaiveDate;
+    use serde::{self, Deserialize, Deserializer, Serializer};
+
+    const FCC_FORMAT: &str = "%m/%d/%Y";
+    const SQL_FORMAT: &str = "%Y-%m-%d";
+
+    // The signature of a serialize_with function must follow the pattern:
+    //
+    //    fn serialize<S>(&T, S) -> Result<S::Ok, S::Error>
+    //    where
+    //        S: Serializer
+    //
+    // although it may also be generic over the input types T.
+    pub fn serialize<S>(date: &Option<NaiveDate>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match date {
+            Some(date) => date.format(SQL_FORMAT).to_string(),
+            None => "".to_string(),
+        };
+        serializer.serialize_str(&s)
+    }
+
+    // The signature of a deserialize_with function must follow the pattern:
+    //
+    //    fn deserialize<'de, D>(D) -> Result<T, D::Error>
+    //    where
+    //        D: Deserializer<'de>
+    //
+    // although it may also be generic over the output types T.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        if s == "" {
+            return Ok(None);
+        }
+        NaiveDate::parse_from_str(&s, FCC_FORMAT)
+            .map(|date| Some(date))
+            .map_err(serde::de::Error::custom)
+    }
+}
 
 #[allow(dead_code, non_snake_case)]
 #[derive(Debug, Deserialize)]
@@ -48,10 +95,12 @@ struct Comment<'a> {
     pub UniqueSystemIdentifier: &'a str,
     pub UlsFileNumber: &'a str,
     pub CallSign: &'a str,
-    pub CommentDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub CommentDate: Option<NaiveDate>,
     pub Description: &'a str,
     pub StatusCode: &'a str,
-    pub StatusDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub StatusDate: Option<NaiveDate>,
 }
 #[allow(dead_code, non_snake_case)]
 #[derive(Deserialize, Debug)]
@@ -82,7 +131,8 @@ struct Entity<'a> {
     pub ApplicantTypeCode: &'a str,
     pub ApplicantTypeCodeOther: &'a str,
     pub StatusCode: &'a str,
-    pub StatusDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub StatusDate: Option<NaiveDate>,
     pub ThreePointSevenGhzLicenseType: &'a str,
     pub LinkedUniqueSystemIdentifier: &'a str,
     pub LinkedCallsign: &'a str,
@@ -98,9 +148,12 @@ struct Header<'a> {
     pub CallSign: &'a str,
     pub LicenseStatus: &'a str,
     pub RadioServiceCode: &'a str,
-    pub GrantDate: &'a str,
-    pub ExpiredDate: &'a str,
-    pub CancellationDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub GrantDate: Option<NaiveDate>,
+    #[serde(with = "fcc_date")]
+    pub ExpiredDate: Option<NaiveDate>,
+    #[serde(with = "fcc_date")]
+    pub CancellationDate: Option<NaiveDate>,
     pub EligibilityRuleNumber: &'a str,
     pub Reserved: &'a str,
     pub Alien: &'a str,
@@ -133,8 +186,10 @@ struct Header<'a> {
     pub Asian: &'a str,
     pub White: &'a str,
     pub Hispanic: &'a str,
-    pub EffectiveDate: &'a str,
-    pub LastActionDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub EffectiveDate: Option<NaiveDate>,
+    #[serde(with = "fcc_date")]
+    pub LastActionDate: Option<NaiveDate>,
     pub AuctionId: Option<i32>,
     pub BroadcastServicesRegulatoryStatus: &'a str,
     pub BandManagerRegulatoryStatus: &'a str,
@@ -158,7 +213,8 @@ struct History<'a> {
     pub UniqueSystemIdentifier: &'a str,
     pub UlsFileNumber: &'a str,
     pub CallSign: &'a str,
-    pub LogDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub LogDate: Option<NaiveDate>,
     pub Code: &'a str,
 }
 #[allow(dead_code, non_snake_case)]
@@ -169,7 +225,8 @@ struct LicenseAttachment<'a> {
     pub CallSign: &'a str,
     pub AttachmentCode: &'a str,
     pub AttachmentDescription: &'a str,
-    pub AttachmentDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub AttachmentDate: Option<NaiveDate>,
     pub AttachmentFileName: &'a str,
     pub ActionPerformed: &'a str,
 }
@@ -184,7 +241,8 @@ struct SpecialCondition<'a> {
     pub SpecialConditionType: &'a str,
     pub SpecialConditionCode: Option<i32>,
     pub StatusCode: &'a str,
-    pub StatusDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub StatusDate: Option<NaiveDate>,
 }
 #[allow(dead_code, non_snake_case)]
 #[derive(Deserialize, Debug)]
@@ -199,7 +257,8 @@ struct SpecialConditionFreeForm<'a> {
     pub SequenceNumber: Option<i32>,
     pub LicenseFreeFormCondition: &'a str,
     pub StatusCode: &'a str,
-    pub StatusDate: &'a str,
+    #[serde(with = "fcc_date")]
+    pub StatusDate: Option<NaiveDate>,
 }
 fn download_file() -> Result<File, ()> {
     let resp = ureq::get(WEEKLY_DUMP_URL)
@@ -694,7 +753,7 @@ async fn load_license_attachments(db: &Pool<Sqlite>) {
         let line = line.expect("Error reading entry");
         let attachment: LicenseAttachment =
             line.deserialize(None).expect("Error deserializing entry");
-        let statement = sqlx::query(INSERT_SPECIAL_CONDITION_SQL);
+        let statement = sqlx::query(INSERT_LICENSE_ATTACHMENT_SQL);
         statement
             .bind(attachment.RecordType)
             .bind(attachment.UniqueSystemIdentifier)
@@ -828,7 +887,8 @@ async fn load_special_conditions_free_form(db: &Pool<Sqlite>) {
 
 #[tokio::main]
 async fn main() {
-    let output_file = download_file().expect("Error downloading file");
+    // let output_file = download_file().expect("Error downloading file");
+    let output_file = File::open("l_amat.zip").expect("Error opening file");
 
     unzip_file(output_file).expect("Error unzipping file");
 
