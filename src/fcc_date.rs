@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use chrono::NaiveDate;
 use serde::{self, Deserialize, Deserializer, Serializer};
 
@@ -34,10 +36,10 @@ where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    if s == "" {
+    if s.is_empty() {
         return Ok(None);
     }
     NaiveDate::parse_from_str(&s, FCC_FORMAT)
-        .map(|date| Some(date))
+        .map(Some)
         .map_err(serde::de::Error::custom)
 }
