@@ -10,11 +10,22 @@ mod load;
 mod types;
 
 const WEEKLY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip";
+const SPECIAL_CONDITIONS_URL: &str = "https://www.fcc.gov/file/20669/download";
 
-fn download_file() -> Result<File, ()> {
-    let resp = ureq::get(WEEKLY_DUMP_URL)
-        .call()
-        .expect("Error downloading file");
+/// Downloads a file from the given URL to the given path
+///
+/// # Arguments
+///
+/// * `url` - The URL to download from
+/// * `path` - The path to download to. If None, try and use the Content-Disposition
+/// header to determine the filename, and fall back to the last segment of the URL
+///
+/// # Examples
+/// ```
+/// download_file("https://data.fcc.gov/download/pub/uls/complete/l_amat.zip", None);
+/// ```
+fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
+    let resp = ureq::get(url).call().expect("Error downloading file");
 
     // We can work on handling not having a Content-Length header later
     assert!(resp.has("Content-Length"));
@@ -24,20 +35,67 @@ fn download_file() -> Result<File, ()> {
         .parse()
         .expect("Error parsing Content-Length header");
 
-    let last_modified = DateTime::parse_from_rfc2822(
-        resp.header("Last-Modified")
-            .expect("Error getting Last-Modified header"),
-    )
-    .expect("Error parsing Last-Modified header")
-    .timestamp();
+    let last_modified = match resp.header("Last-Modified") {
+        Some(last_mod) => {
+            match DateTime::parse_from_rfc2822(last_mod) {
+                Ok(dt) => Some(dt.timestamp()),
+                Err(_) => None,
+            }
+        }
+        None => {
+            None
+        }
+    };
 
-    let output_file_name = "l_amat.zip";
+    // Time to determine the file name!
+    // Start by seeing if we were told anything, that makes it easy
+    // This is just a helper. It should be its own function. lmao.
+    let parse_file_name_from_url = |url: &str| {
+        let output_file_name_regex = Regex::new(r"/(\w+\.?\w*)").expect("Error constructing regex");
+        let Some(file_name_captures) = output_file_name_regex.captures_iter(url).last() else {
+            panic!("Error parsing file name from URL");
+        };
+        let Some(maybe_match) = file_name_captures.iter().last() else {
+            panic!("Error parsing file name from URL");
+        };
+        let Some(file_name_match) = maybe_match else {
+            panic!("Error parsing file name from URL");
+        };
+        String::from(file_name_match.as_str())
+    };
+    let output_file_name = match file_name {
+        Some(n) => String::from(n),
+        None => {
+            // We weren't given a file name by the user, so we need to figure it out ourself
+            match resp.header("Content-Disposition") {
+                // A Content-Disposition header is present, so we can use that
+                Some(content_disposition) => {
+                    let content_disposition_regex =
+                        Regex::new(r#"filename="([\w\.]+)""#).expect("Error compiling regex");
+                    // Check if the Content-Disposition header specifies a filename
+                    match content_disposition_regex.captures(content_disposition) {
+                        Some(cd_match) => {
+                            // We have a filename, so use that
+                            // TODO: Make less unwrappy
+                            cd_match.iter().last().unwrap().unwrap().as_str().to_string()
+                        }
+                        None => {
+                            // It doesn't, so we have to fall back to the file name in the URL
+                            parse_file_name_from_url(url)
+                        }
+                    }
+                }
+                // No Content-Disposition header, so we have to fall back to the file name in the URL
+                None => parse_file_name_from_url(url),
+            }
+        }
+    };
 
-    if std::path::Path::new(output_file_name).exists() {
-        let file_metadata = fs::metadata(output_file_name).expect("Error getting file metadata");
+    if std::path::Path::new(&output_file_name).exists() {
+        let file_metadata = fs::metadata(&output_file_name).expect("Error getting file metadata");
         let mtime = FileTime::from_last_modification_time(&file_metadata);
 
-        match (mtime.seconds() >= last_modified, file_metadata.len() == len) {
+        match (mtime.seconds() >= last_modified.unwrap_or(1), file_metadata.len() == len) {
             (true, true) => {
                 println!("File already downloaded");
                 return Ok(File::open(output_file_name).expect("Error opening file"));
@@ -53,7 +111,7 @@ fn download_file() -> Result<File, ()> {
         println!("File does not exist, downloading");
     }
 
-    let mut output_file = fs::File::create(output_file_name).expect("Error creating output file");
+    let mut output_file = fs::File::create(&output_file_name).expect("Error creating output file");
 
     let mut reader = resp.into_reader();
     let chunk_size = len / 99;
@@ -143,7 +201,10 @@ fn unzip_file(zip_file: File) -> Result<(), ()> {
 
 #[tokio::main]
 async fn main() {
-    let output_file = download_file().expect("Error downloading file");
+    let output_file = download_file(WEEKLY_DUMP_URL, None).expect("Error downloading weekly dump file");
+
+    #[allow(unused_variables)]
+    let conditions_file = download_file(SPECIAL_CONDITIONS_URL, None).expect("Error downloading Special Conditions file");
 
     unzip_file(output_file).expect("Error unzipping file");
 

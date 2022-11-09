@@ -1,7 +1,12 @@
+# Compiled binaries and stuff
 /target
 
+# FCC files
 *.zip
 *.dat
 counts
+*.txt
+
+# Generated files
 *.db
 *.db.zst

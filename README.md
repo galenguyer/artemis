@@ -2,6 +2,11 @@
 
 The FCC publishes weekly full dumps and daily updates to their license database. The format is awful and the FCC search page is so slow. This dumps it into SQL so we can be speedy
 
+## Usage
+Before running the program, you must create your database. Run `sqlite3 fcc.db < migrations/01-create-db.sql` to do so.
+
+Once this is done, you can run artemis. Note that there's no checking of if a key exists yet or not. It'll simply yolo it, so if you run it multiple times you'll get multiple copies. This will be fixed Eventually.
+
 ## References
 All documentation for the FCC ULS database dumps can be found at [www.fcc.gov/wireless/data/public-access-files-database-downloads](https://www.fcc.gov/wireless/data/public-access-files-database-downloads)
 
