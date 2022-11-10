@@ -36,15 +36,11 @@ fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
         .expect("Error parsing Content-Length header");
 
     let last_modified = match resp.header("Last-Modified") {
-        Some(last_mod) => {
-            match DateTime::parse_from_rfc2822(last_mod) {
-                Ok(dt) => Some(dt.timestamp()),
-                Err(_) => None,
-            }
-        }
-        None => {
-            None
-        }
+        Some(last_mod) => match DateTime::parse_from_rfc2822(last_mod) {
+            Ok(dt) => Some(dt.timestamp()),
+            Err(_) => None,
+        },
+        None => None,
     };
 
     // Time to determine the file name!
@@ -77,7 +73,13 @@ fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
                         Some(cd_match) => {
                             // We have a filename, so use that
                             // TODO: Make less unwrappy
-                            cd_match.iter().last().unwrap().unwrap().as_str().to_string()
+                            cd_match
+                                .iter()
+                                .last()
+                                .unwrap()
+                                .unwrap()
+                                .as_str()
+                                .to_string()
                         }
                         None => {
                             // It doesn't, so we have to fall back to the file name in the URL
@@ -95,7 +97,10 @@ fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
         let file_metadata = fs::metadata(&output_file_name).expect("Error getting file metadata");
         let mtime = FileTime::from_last_modification_time(&file_metadata);
 
-        match (mtime.seconds() >= last_modified.unwrap_or(1), file_metadata.len() == len) {
+        match (
+            mtime.seconds() >= last_modified.unwrap_or(1),
+            file_metadata.len() == len,
+        ) {
             (true, true) => {
                 println!("File already downloaded");
                 return Ok(File::open(output_file_name).expect("Error opening file"));
@@ -201,22 +206,40 @@ fn unzip_file(zip_file: File) -> Result<(), ()> {
 
 #[tokio::main]
 async fn main() {
-    let output_file = download_file(WEEKLY_DUMP_URL, None).expect("Error downloading weekly dump file");
-
-    #[allow(unused_variables)]
-    let conditions_file = download_file(SPECIAL_CONDITIONS_URL, None).expect("Error downloading Special Conditions file");
+    let output_file =
+        download_file(WEEKLY_DUMP_URL, None).expect("Error downloading weekly dump file");
+    // Hardcoding this file name because it might change and I don't want to deal with that
+    let _conditions_file =
+        download_file(SPECIAL_CONDITIONS_URL, Some("special_condition_codes.txt"))
+            .expect("Error downloading Special Conditions file");
 
     unzip_file(output_file).expect("Error unzipping file");
+
+    // Some idiot at the FCC decided that unescaped newlines in the middle of a field were cool
+    // Uncle Ted may have had some good ideas after all
+    let comments_regex = Regex::new(r"\s*\r\r\n").unwrap();
+    let comments = fs::read_to_string("CO.dat").expect("Error reading file");
+    fs::write(
+        "CO.dat",
+        comments_regex.replace_all(&comments, " ").to_string(),
+    )
+    .expect("Error writing file");
+
+    // This is somehow worse, newlines can either be \n (more common) OR \r\n.
+    // The first one is easy, if there's a newline without a preceeding carriage return, it's bad and should be gone
+    // CRLF is what's normally used, however the last character of every entry is either R, P, T, or |, so if there's a CRLF
+    // without one of those immediately before, yeet it
+    let conditions_regex = Regex::new(r"(([^\r]\n)|([^RPT\|]\r\n))").unwrap();
+    let conditions = fs::read_to_string("special_condition_codes.txt").expect("Error reading file");
+    fs::write(
+        "special_condition_codes.txt",
+        conditions_regex.replace_all(&conditions, " ").to_string(),
+    )
+    .expect("Error writing file");
 
     let db = SqlitePool::connect("sqlite://fcc.db")
         .await
         .expect("Error connecting to database");
-
-    // Some idiot at the FCC decided that unescaped newlines in the middle of a field were cool
-    // Uncle Ted may have had some good ideas after all
-    let re = Regex::new(r"\s*\r\r\n").unwrap();
-    let comments = fs::read_to_string("CO.dat").expect("Error reading file");
-    fs::write("CO.dat", re.replace_all(&comments, " ").to_string()).expect("Error writing file");
 
     load::load_amateurs(&db).await;
     load::load_comments(&db).await;
@@ -226,4 +249,6 @@ async fn main() {
     load::load_license_attachments(&db).await;
     load::load_special_conditions(&db).await;
     load::load_special_conditions_free_form(&db).await;
+
+    load::load_special_condition_codes(&db).await;
 }

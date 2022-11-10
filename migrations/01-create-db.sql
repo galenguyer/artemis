@@ -170,5 +170,11 @@ CREATE TABLE special_conditions_free_form (
   status_code varchar(1),
   status_date datetime
 );
+CREATE TABLE special_condition_codes (
+  code INTEGER PRIMARY KEY,
+  service varchar(2),
+  description TEXT,
+  unknown TEXT
+);
 INSERT INTO migrations (name)
 VALUES ('01-create-db.sql');

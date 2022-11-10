@@ -12,6 +12,7 @@ const INSERT_HISTORY_SQL: &str = r"INSERT INTO history (record_type, unique_syst
 const INSERT_LICENSE_ATTACHMENT_SQL: &str = r"INSERT INTO license_attachments (record_type, unique_system_identifier, call_sign, attachment_code, attachment_description, attachment_date, attachment_file_name, action_performed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 const INSERT_SPECIAL_CONDITION_SQL: &str = r"INSERT INTO special_conditions (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, special_conditions_type, special_conditions_code, status_code, status_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 const INSERT_SPECIAL_CONDITION_FREE_FORM_SQL: &str = r"INSERT INTO special_conditions_free_form (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, license_free_form_type, unique_license_free_form_identifier, sequence_number, license_free_form_condition, status_code, status_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+const INSERT_SPECIAL_CONDITION_CODES_SQL: &str = r"INSERT INTO special_condition_codes (code, service, description, unknown) VALUES (?, ?, ?, ?)";
 
 pub async fn load_amateurs(db: &SqlitePool) {
     let amateurs_file = File::open("AM.dat").expect("Error opening file");
@@ -493,6 +494,59 @@ pub async fn load_special_conditions_free_form(db: &SqlitePool) {
             .bind(condition.LicenseFreeFormCondition)
             .bind(condition.StatusCode)
             .bind(condition.StatusDate)
+            .execute(&mut transaction)
+            .await
+            .expect("Error executing statement");
+        progress_bar.set_position(line.position().unwrap().line());
+    }
+
+    transaction
+        .commit()
+        .await
+        .expect("Error committing transaction");
+
+    progress_bar.finish();
+}
+
+pub async fn load_special_condition_codes(db: &SqlitePool) {
+    let codes_file = File::open("special_condition_codes.txt").expect("Error opening file");
+    // let history_file_meta = fs::metadata("special_condition_codes.txt").expect("Error getting file metadata");
+    let line_count = std::io::BufReader::new(&codes_file).lines().count();
+    drop(codes_file);
+
+    let codes_file = File::open("special_condition_codes.txt").expect("Error opening file");
+    let mut transaction = db.begin().await.expect("Error starting transaction");
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .delimiter(b'|')
+        .quoting(true)
+        .from_reader(codes_file);
+
+    let progress_bar = ProgressBar::new(line_count.try_into().unwrap());
+    progress_bar.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed}+{eta}/{duration}] [{bar:40.cyan/blue}] {human_pos}/{human_len} ({per_sec}) {msg}",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    progress_bar.set_message("special_condition_codes.txt");
+
+    for line in reader.records() {
+        let line = line.expect("Error reading entry");
+        let statement = sqlx::query(INSERT_SPECIAL_CONDITION_CODES_SQL);
+        statement
+            .bind(line.get(0))
+            .bind(line.get(1))
+            .bind(format!(
+                "{} {} {} {} {}",
+                line.get(2).unwrap_or_default(),
+                line.get(3).unwrap_or_default(),
+                line.get(4).unwrap_or_default(),
+                line.get(5).unwrap_or_default(),
+                line.get(6).unwrap_or_default()
+            ))
+            .bind(line.get(7))
             .execute(&mut transaction)
             .await
             .expect("Error executing statement");
