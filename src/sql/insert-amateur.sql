@@ -1,0 +1,20 @@
+INSERT INTO amateurs (
+        record_type,
+        unique_system_identifier,
+        uls_file_number,
+        ebf_number,
+        call_sign,
+        operator_class,
+        group_code,
+        region_code,
+        trustee_call_sign,
+        trustee_indicator,
+        physician_certification,
+        ve_signature,
+        systematic_call_sign_change,
+        vanity_call_sign_change,
+        vainty_relationship,
+        previous_call_sign,
+        previous_operator_class,
+        trustee_name
+    )

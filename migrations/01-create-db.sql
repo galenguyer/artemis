@@ -1,11 +1,12 @@
 .echo on
 
-CREATE TABLE migrations (
+CREATE TABLE IF NOT EXISTS updates (
   id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  daily BOOLEAN NOT NULL,
+  date datetime NOT NULL,
 );
-CREATE TABLE amateurs (
+
+CREATE TABLE IF NOT EXISTS amateurs (
   record_type varchar(2) not null default 'AM',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -25,7 +26,7 @@ CREATE TABLE amateurs (
   previous_operator_class varchar(1),
   trustee_name varchar(50)
 );
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
   record_type varchar(2) not null default "CO",
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -35,7 +36,7 @@ CREATE TABLE comments (
   status_code varchar(1),
   status_date datetime
 );
-CREATE TABLE entities (
+CREATE TABLE IF NOT EXISTS entities (
   record_type varchar(2) not null default 'EN',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -67,7 +68,7 @@ CREATE TABLE entities (
   linked_license_id integer null,
   linked_callsign varchar(10)
 );
-CREATE TABLE headers (
+CREATE TABLE IF NOT EXISTS headers (
   record_type varchar(2) not null default 'HD',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -128,7 +129,7 @@ CREATE TABLE headers (
   return_spectrum_cert_900 varchar(1),
   payment_cert_900 varchar(1)
 );
-CREATE TABLE history (
+CREATE TABLE IF NOT EXISTS history (
   record_type varchar(2) not null default 'HS',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -136,7 +137,7 @@ CREATE TABLE history (
   log_date datetime,
   code varchar(6)
 );
-CREATE TABLE license_attachments (
+CREATE TABLE IF NOT EXISTS license_attachments (
   record_type varchar(2) not null default 'LA',
   unique_system_identifier integer not null,
   call_sign varchar(10),
@@ -146,7 +147,7 @@ CREATE TABLE license_attachments (
   attachment_file_name varchar(60),
   action_performed varchar(1)
 );
-CREATE TABLE special_conditions (
+CREATE TABLE IF NOT EXISTS special_conditions (
   record_type varchar(2) not null default 'SC',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -157,7 +158,7 @@ CREATE TABLE special_conditions (
   status_code varchar(1),
   status_date datetime
 );
-CREATE TABLE special_conditions_free_form (
+CREATE TABLE IF NOT EXISTS special_conditions_free_form (
   record_type varchar(2) not null default 'SF',
   unique_system_identifier integer not null,
   uls_file_number varchar(14),
@@ -170,11 +171,9 @@ CREATE TABLE special_conditions_free_form (
   status_code varchar(1),
   status_date datetime
 );
-CREATE TABLE special_condition_codes (
+CREATE TABLE IF NOT EXISTS special_condition_codes (
   code INTEGER PRIMARY KEY,
   service varchar(2),
   description TEXT,
   unknown TEXT
 );
-INSERT INTO migrations (name)
-VALUES ('01-create-db.sql');

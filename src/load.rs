@@ -6,16 +6,17 @@ use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use std::fs::File;
 use std::io::BufRead;
 
-const INSERT_AMATEUR_SQL: &str = r"INSERT INTO amateurs (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, operator_class, group_code, region_code, trustee_call_sign, trustee_indicator, physician_certification, ve_signature, systematic_call_sign_change, vanity_call_sign_change, vainty_relationship, previous_call_sign, previous_operator_class, trustee_name) ";
-const INSERT_COMMENT_SQL: &str = r"INSERT INTO comments (record_type, unique_system_identifier, uls_file_number, call_sign, comment_date, description, status_code, status_date) ";
-const INSERT_ENTITY_SQL: &str = r"INSERT INTO entities (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, entity_type, licensee_id, entity_name, first_name, mi, last_name, suffix, phone, fax, email, street_address, city, state, zip_code, po_box, attention_line, sgin, frn, applicant_type_code, applicant_type_other, status_code, status_date, lic_category_code, linked_license_id, linked_callsign) ";
-const INSERT_HEADER_SQL: &str = r"INSERT INTO headers (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, license_status, radio_service_code, grant_date, expired_date, cancellation_date, eligibility_rule_number, reserved, alien, alien_government, alien_corporation, alien_officer, alien_control, revoked, convicted, adjudged, reserved2, common_carrier, non_common_carrier, private_comm, fixed, mobile, radiolocation, satellite, developmental_or_sta, interconnected_service, certifier_first_name, certifier_mi, certifier_last_name, certifier_suffix, certifier_title, gender, african_american, native_american, hawaiian, asian, white, ethnicity, effective_date, last_action_date, auction_id, reg_stat_broad_serv, band_manager, type_serv_broad_serv, alien_ruling, licensee_name_change, whitespace_ind, additional_cert_choice, additional_cert_answer, discontinuation_ind, regulatory_compliance_ind, eligibility_cert_900, transition_plan_cert_900, return_spectrum_cert_900, payment_cert_900) ";
-const INSERT_HISTORY_SQL: &str = r"INSERT INTO history (record_type, unique_system_identifier, uls_file_number, call_sign, log_date, code) ";
-const INSERT_LICENSE_ATTACHMENT_SQL: &str = r"INSERT INTO license_attachments (record_type, unique_system_identifier, call_sign, attachment_code, attachment_description, attachment_date, attachment_file_name, action_performed) ";
-const INSERT_SPECIAL_CONDITION_SQL: &str = r"INSERT INTO special_conditions (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, special_conditions_type, special_conditions_code, status_code, status_date) ";
-const INSERT_SPECIAL_CONDITION_FREE_FORM_SQL: &str = r"INSERT INTO special_conditions_free_form (record_type, unique_system_identifier, uls_file_number, ebf_number, call_sign, license_free_form_type, unique_license_free_form_identifier, sequence_number, license_free_form_condition, status_code, status_date) ";
-const INSERT_SPECIAL_CONDITION_CODES_SQL: &str =
-    r"INSERT INTO special_condition_codes (code, service, description, unknown) ";
+const INSERT_AMATEUR_SQL: &str = include_str!("sql/insert-amateur.sql");
+const INSERT_COMMENT_SQL: &str = include_str!("sql/insert-comment.sql");
+const INSERT_ENTITY_SQL: &str = include_str!("sql/insert-entity.sql");
+const INSERT_HEADER_SQL: &str = include_str!("sql/insert-header.sql");
+const INSERT_HISTORY_SQL: &str = include_str!("sql/insert-history.sql");
+const INSERT_LICENSE_ATTACHMENT_SQL: &str = include_str!("sql/insert-license-attachment.sql");
+const INSERT_SPECIAL_CONDITION_SQL: &str = include_str!("sql/insert-special-condition.sql");
+const INSERT_SPECIAL_CONDITION_FREE_FORM_SQL: &str =
+    include_str!("sql/insert-special-condition-free-form.sql");
+const INSERT_SPECIAL_CONDITION_CODE_SQL: &str =
+    include_str!("sql/insert-special-condition-code.sql");
 
 const BIND_LIMIT: usize = 32766;
 
@@ -42,6 +43,12 @@ pub async fn load_amateurs(db: &SqlitePool) {
         .progress_chars("#>-"),
     );
     progress_bar.set_message("AM.dat");
+
+    QueryBuilder::new("DELETE FROM amateurs")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting amateurs");
 
     let chunk_size = BIND_LIMIT / 18;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -112,6 +119,12 @@ pub async fn load_comments(db: &SqlitePool) {
     );
     progress_bar.set_message("CO.dat");
 
+    QueryBuilder::new("DELETE FROM comments")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting comments");
+
     let chunk_size = BIND_LIMIT / 8;
     for chunk in &reader.records().chunks(chunk_size) {
         let chunk = chunk.collect::<Result<Vec<StringRecord>, _>>().unwrap();
@@ -171,6 +184,12 @@ pub async fn load_entities(db: &SqlitePool) {
         .progress_chars("#>-"),
     );
     progress_bar.set_message("EN.dat");
+
+    QueryBuilder::new("DELETE FROM entities")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting entities");
 
     let chunk_size = BIND_LIMIT / 30;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -252,6 +271,12 @@ pub async fn load_headers(db: &SqlitePool) {
         .progress_chars("#>-"),
     );
     progress_bar.set_message("HD.dat");
+
+    QueryBuilder::new("DELETE FROM headers")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting headers");
 
     let chunk_size = BIND_LIMIT / 60;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -364,6 +389,12 @@ pub async fn load_history(db: &SqlitePool) {
     );
     progress_bar.set_message("HS.dat");
 
+    QueryBuilder::new("DELETE FROM history")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting history");
+
     let chunk_size = BIND_LIMIT / 6;
     for chunk in &reader.records().chunks(chunk_size) {
         let chunk = chunk.collect::<Result<Vec<StringRecord>, _>>().unwrap();
@@ -421,6 +452,12 @@ pub async fn load_license_attachments(db: &SqlitePool) {
         .progress_chars("#>-"),
     );
     progress_bar.set_message("LA.dat");
+
+    QueryBuilder::new("DELETE FROM license_attachments")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting license_attachments");
 
     let chunk_size = BIND_LIMIT / 8;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -484,6 +521,12 @@ pub async fn load_special_conditions(db: &SqlitePool) {
     );
     progress_bar.set_message("SC.dat");
 
+    QueryBuilder::new("DELETE FROM special_conditions")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting special_conditions");
+
     let chunk_size = BIND_LIMIT / 9;
     for chunk in &reader.records().chunks(chunk_size) {
         let chunk = chunk.collect::<Result<Vec<StringRecord>, _>>().unwrap();
@@ -546,6 +589,12 @@ pub async fn load_special_conditions_free_form(db: &SqlitePool) {
         .progress_chars("#>-"),
     );
     progress_bar.set_message("SF.dat");
+
+    QueryBuilder::new("DELETE FROM special_conditions_free_form")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting special_conditions_free_form");
 
     let chunk_size = BIND_LIMIT / 11;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -612,13 +661,19 @@ pub async fn load_special_condition_codes(db: &SqlitePool) {
     );
     progress_bar.set_message("special_condition_codes.txt");
 
+    QueryBuilder::new("DELETE FROM special_condition_codes")
+        .build()
+        .execute(&mut transaction)
+        .await
+        .expect("Error deleting special_condition_codes");
+
     let chunk_size = BIND_LIMIT / 4;
     for chunk in &reader.records().chunks(chunk_size) {
         let chunk = chunk.collect::<Result<Vec<StringRecord>, _>>().unwrap();
         let chunk = chunk.iter();
 
         let mut query_builder: QueryBuilder<Sqlite> =
-            QueryBuilder::new(INSERT_SPECIAL_CONDITION_CODES_SQL);
+            QueryBuilder::new(INSERT_SPECIAL_CONDITION_CODE_SQL);
 
         query_builder.push_values(chunk, |mut builder, entry| {
             builder

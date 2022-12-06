@@ -1,0 +1,1 @@
+INSERT INTO special_condition_codes (code, service, description, unknown)
