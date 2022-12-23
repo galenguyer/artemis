@@ -92,6 +92,7 @@ pub async fn load_amateurs(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
+    std::fs::remove_file("AM.dat").expect("Error deleting AM.dat");
     progress_bar.finish();
 }
 
@@ -157,7 +158,7 @@ pub async fn load_comments(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("CO.dat").expect("Error deleting CO.dat");
     progress_bar.finish();
 }
 
@@ -245,6 +246,7 @@ pub async fn load_entities(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
+    std::fs::remove_file("EN.dat").expect("Error deleting EN.dat");
     progress_bar.finish();
 }
 
@@ -361,7 +363,7 @@ pub async fn load_headers(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("HD.dat").expect("Error deleting HD.dat");
     progress_bar.finish();
 }
 
@@ -425,7 +427,7 @@ pub async fn load_history(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("HS.dat").expect("Error deleting HS.dat");
     progress_bar.finish();
 }
 
@@ -493,7 +495,7 @@ pub async fn load_license_attachments(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("LA.dat").expect("Error deleting LA.dat");
     progress_bar.finish();
 }
 
@@ -562,7 +564,7 @@ pub async fn load_special_conditions(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("SC.dat").expect("Error deleting SC.dat");
     progress_bar.finish();
 }
 
@@ -633,7 +635,7 @@ pub async fn load_special_conditions_free_form(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("SF.dat").expect("Error deleting SF.dat");
     progress_bar.finish();
 }
 
@@ -702,6 +704,7 @@ pub async fn load_special_condition_codes(db: &SqlitePool) {
         .commit()
         .await
         .expect("Error committing transaction");
-
+    std::fs::remove_file("special_condition_codes.txt")
+        .expect("Error deleting special_condition_codes.txt");
     progress_bar.finish();
 }

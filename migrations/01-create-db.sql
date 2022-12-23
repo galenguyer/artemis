@@ -1,9 +1,10 @@
 .echo on
 
 CREATE TABLE IF NOT EXISTS updates (
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY,
   daily BOOLEAN NOT NULL,
-  date datetime NOT NULL,
+  weekly BOOLEAN NOT NULL,
+  date datetime NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS amateurs (

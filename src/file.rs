@@ -142,12 +142,16 @@ pub fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
     }
 
     output_file.flush().expect("Error flushing output file");
+    if let Some(modified) = last_modified {
+        filetime::set_file_mtime(&output_file_name, FileTime::from_unix_time(modified, 0))
+            .expect("Error setting file mtime");
+    }
     progress_bar.finish();
 
     Ok(fs::File::open(&output_file_name).expect("Error opening output file"))
 }
 
-pub fn unzip_file(zip_file: File) -> Result<(), ()> {
+pub fn unzip_file(zip_file: &File) -> Result<(), ()> {
     let mut archive = zip::ZipArchive::new(zip_file).expect("Error opening zip archive");
 
     let progress_bar = ProgressBar::new(archive.len().try_into().unwrap());

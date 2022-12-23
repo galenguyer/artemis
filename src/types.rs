@@ -2,7 +2,17 @@
 
 use crate::fcc_date;
 use chrono::NaiveDate;
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
+use sqlx::FromRow;
+
+#[derive(Debug, Deserialize, FromRow)]
+pub struct Update {
+    pub id: u32,
+    pub daily: bool,
+    pub weekly: bool,
+    pub date: DateTime<Utc>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Amateur<'a> {
