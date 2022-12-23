@@ -1,4 +1,4 @@
-INSERT INTO special_conditions (
+INSERT OR REPLACE INTO special_conditions (
         record_type,
         unique_system_identifier,
         uls_file_number,

@@ -1,4 +1,4 @@
-INSERT INTO special_conditions_free_form (
+INSERT OR REPLACE INTO special_conditions_free_form (
         record_type,
         unique_system_identifier,
         uls_file_number,

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS updates (
 
 CREATE TABLE IF NOT EXISTS amateurs (
   record_type varchar(2) not null default 'AM',
-  unique_system_identifier integer not null,
+  unique_system_identifier integer primary key,
   uls_file_number varchar(14),
   ebf_number varchar(30),
   call_sign varchar(10),
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE TABLE IF NOT EXISTS entities (
   record_type varchar(2) not null default 'EN',
-  unique_system_identifier integer not null,
+  unique_system_identifier integer primary key,
   uls_file_number varchar(14),
   ebf_number varchar(30),
   call_sign varchar(10),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS entities (
 );
 CREATE TABLE IF NOT EXISTS headers (
   record_type varchar(2) not null default 'HD',
-  unique_system_identifier integer not null,
+  unique_system_identifier integer primary key,
   uls_file_number varchar(14),
   ebf_number varchar(30),
   call_sign varchar(10),

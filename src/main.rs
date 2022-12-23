@@ -46,6 +46,50 @@ impl FccUpdates {
             saturday: get_last_updated_header(SATURDAY_DUMP_URL),
         }
     }
+
+    fn get_pending(&self, last_update: DateTime<Utc>) -> Vec<(DateTime<Utc>, String)> {
+        let mut pending = Vec::new();
+
+        if let Some(sunday) = self.sunday {
+            if sunday > last_update {
+                pending.push((sunday, SUNDAY_DUMP_URL.to_string()));
+            }
+        }
+        if let Some(monday) = self.monday {
+            if monday > last_update {
+                pending.push((monday, MONDAY_DUMP_URL.to_string()));
+            }
+        }
+        if let Some(tuesday) = self.tuesday {
+            if tuesday > last_update {
+                pending.push((tuesday, TUESDAY_DUMP_URL.to_string()));
+            }
+        }
+        if let Some(wednesday) = self.wednesday {
+            if wednesday > last_update {
+                pending.push((wednesday, WEDNESDAY_DUMP_URL.to_string()));
+            }
+        }
+        if let Some(thursday) = self.thursday {
+            if thursday > last_update {
+                pending.push((thursday, THURSDAY_DUMP_URL.to_string()));
+            }
+        }
+        if let Some(friday) = self.friday {
+            if friday > last_update {
+                pending.push((friday, FRIDAY_DUMP_URL.to_string()));
+            }
+        }
+        if let Some(saturday) = self.saturday {
+            if saturday > last_update {
+                pending.push((saturday, SATURDAY_DUMP_URL.to_string()));
+            }
+        }
+
+        pending.sort_by(|a, b| a.0.cmp(&b.0));
+
+        pending
+    }
 }
 
 fn get_last_updated_header(url: &str) -> Option<DateTime<Utc>> {
@@ -105,20 +149,69 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
     )
     .expect("Error writing file");
 
-    load::load_amateurs(db).await;
-    load::load_comments(db).await;
-    load::load_entities(db).await;
-    load::load_headers(db).await;
-    load::load_history(db).await;
-    load::load_license_attachments(db).await;
-    load::load_special_conditions(db).await;
-    load::load_special_conditions_free_form(db).await;
+    load::load_amateurs(db, true).await;
+    load::load_comments(db, true).await;
+    load::load_entities(db, true).await;
+    load::load_headers(db, true).await;
+    load::load_history(db, true).await;
+    load::load_license_attachments(db, true).await;
+    load::load_special_conditions(db, true).await;
+    load::load_special_conditions_free_form(db, true).await;
 
-    load::load_special_condition_codes(db).await;
+    load::load_special_condition_codes(db, true).await;
 
     let meta = output_file.metadata().unwrap();
-    std::fs::remove_file("l_amat.zip").expect("Error deleting l_amat.zip");
+    // std::fs::remove_file("l_amat.zip").expect("Error deleting l_amat.zip");
+    DateTime::<Utc>::from(
+        std::time::UNIX_EPOCH + Duration::from_secs(meta.mtime().try_into().unwrap()),
+    )
+}
 
+
+async fn load_daily(url: &str, db: &SqlitePool) -> chrono::DateTime<Utc> {
+    let parse_file_name_from_url = |url: &str| {
+        let output_file_name_regex = Regex::new(r"/(\w+\.?\w*)").expect("Error constructing regex");
+        let Some(file_name_captures) = output_file_name_regex.captures_iter(url).last() else {
+            panic!("Error parsing file name from URL");
+        };
+        let Some(maybe_match) = file_name_captures.iter().last() else {
+            panic!("Error parsing file name from URL");
+        };
+        let Some(file_name_match) = maybe_match else {
+            panic!("Error parsing file name from URL");
+        };
+        String::from(file_name_match.as_str())
+    };
+
+    let output_file =
+        download_file(url, None).expect("Error downloading weekly dump file");
+
+    unzip_file(&output_file).expect("Error unzipping file");
+    std::fs::remove_file("counts").expect("Error deleting counts file");
+
+    // Some idiot at the FCC decided that unescaped newlines in the middle of a field were cool
+    // Uncle Ted may have had some good ideas after all
+    let comments_regex = Regex::new(r"\s*\r\r\n").unwrap();
+    let comments = fs::read_to_string("CO.dat").expect("Error reading file");
+    fs::write(
+        "CO.dat",
+        comments_regex.replace_all(&comments, " ").to_string(),
+    )
+    .expect("Error writing file");
+
+    load::load_amateurs(db, false).await;
+    load::load_comments(db, false).await;
+    load::load_entities(db, false).await;
+    load::load_headers(db, false).await;
+    load::load_history(db, false).await;
+    load::load_license_attachments(db, false).await;
+    load::load_special_conditions(db, false).await;
+    load::load_special_conditions_free_form(db, false).await;
+
+    let meta = output_file.metadata().unwrap();
+
+    // let file_name = parse_file_name_from_url(url);
+    // std::fs::remove_file(&file_name).unwrap_or_else(|_| panic!("Error deleting {}", file_name));
     DateTime::<Utc>::from(
         std::time::UNIX_EPOCH + Duration::from_secs(meta.mtime().try_into().unwrap()),
     )
@@ -137,7 +230,23 @@ async fn main() {
         .expect("Error getting last weekly update");
 
     // if this is the first time the database is being updated
-    if last_weekly.is_none() {
+    if let Some(last_weekly) = last_weekly {
+        if fcc_updates.weekly.is_some() && fcc_updates.weekly.unwrap() > last_weekly.date {
+            println!("New weekly update found, loading weekly dump");
+            let update_date = load_weekly(&db).await;
+            meta::insert_update(
+                &db,
+                &Update {
+                    id: 0, // placeholder
+                    daily: false,
+                    weekly: true,
+                    date: update_date,
+                },
+            )
+            .await
+            .expect("Error inserting weekly update");
+        }
+    } else {
         println!("No weekly updates found, loading weekly dump");
         let update_date = load_weekly(&db).await;
         meta::insert_update(
@@ -151,23 +260,26 @@ async fn main() {
         )
         .await
         .expect("Error inserting update");
-        return;
     }
-    let last_weekly = last_weekly.unwrap();
 
-    if fcc_updates.weekly.is_some() && fcc_updates.weekly.unwrap() > last_weekly.date {
-        println!("New weekly update found, loading weekly dump");
-        let update_date = load_weekly(&db).await;
+    let last_update = meta::get_last_update(&db, meta::UpdateType::Any)
+        .await
+        .expect("Error getting last update")
+        .expect("No updates found");
+
+    let pending = dbg!(fcc_updates.get_pending(dbg!(last_update.date)));
+    for update in pending {
+        let update_date = load_daily(&dbg!(update.1), &db).await;
         meta::insert_update(
             &db,
             &Update {
                 id: 0, // placeholder
-                daily: false,
-                weekly: true,
+                daily: true,
+                weekly: false,
                 date: update_date,
             },
         )
         .await
-        .expect("Error inserting update");
+        .expect("Error inserting daily update");
     }
 }

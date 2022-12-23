@@ -1,4 +1,4 @@
-INSERT INTO entities (
+INSERT OR REPLACE INTO entities (
         record_type,
         unique_system_identifier,
         uls_file_number,

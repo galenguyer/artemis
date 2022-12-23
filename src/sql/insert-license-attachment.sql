@@ -1,4 +1,4 @@
-INSERT INTO license_attachments (
+INSERT OR REPLACE INTO license_attachments (
         record_type,
         unique_system_identifier,
         call_sign,

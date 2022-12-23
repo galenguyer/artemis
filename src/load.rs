@@ -20,8 +20,13 @@ const INSERT_SPECIAL_CONDITION_CODE_SQL: &str =
 
 const BIND_LIMIT: usize = 32766;
 
-pub async fn load_amateurs(db: &SqlitePool) {
-    let amateurs_file = File::open("AM.dat").expect("Error opening file");
+pub async fn load_amateurs(db: &SqlitePool, clear_first: bool) {
+    let amateurs_file = File::open("AM.dat");
+    if amateurs_file.is_err() {
+        println!("AM.dat not found, skipping");
+        return;
+    }
+    let amateurs_file = amateurs_file.unwrap();
     //let amateurs_file_meta = fs::metadata("AM.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&amateurs_file).lines().count();
     drop(amateurs_file);
@@ -44,11 +49,13 @@ pub async fn load_amateurs(db: &SqlitePool) {
     );
     progress_bar.set_message("AM.dat");
 
-    QueryBuilder::new("DELETE FROM amateurs")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting amateurs");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM amateurs")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting amateurs");
+    }
 
     let chunk_size = BIND_LIMIT / 18;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -96,8 +103,13 @@ pub async fn load_amateurs(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_comments(db: &SqlitePool) {
-    let comments_file = File::open("CO.dat").expect("Error opening file");
+pub async fn load_comments(db: &SqlitePool, clear_first: bool) {
+    let comments_file = File::open("CO.dat");
+    if comments_file.is_err() {
+        println!("CO.dat not found, skipping");
+        return;
+    }
+    let comments_file = comments_file.unwrap();
     // let comments_file_meta = fs::metadata("CO.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&comments_file).lines().count();
     drop(comments_file);
@@ -120,11 +132,13 @@ pub async fn load_comments(db: &SqlitePool) {
     );
     progress_bar.set_message("CO.dat");
 
-    QueryBuilder::new("DELETE FROM comments")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting comments");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM comments")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting comments");
+    }
 
     let chunk_size = BIND_LIMIT / 8;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -162,8 +176,13 @@ pub async fn load_comments(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_entities(db: &SqlitePool) {
-    let entities_file = File::open("EN.dat").expect("Error opening file");
+pub async fn load_entities(db: &SqlitePool, clear_first: bool) {
+    let entities_file = File::open("EN.dat");
+    if entities_file.is_err() {
+        println!("EN.dat not found, skipping");
+        return;
+    }
+    let entities_file = entities_file.unwrap();
     //let entities_file_meta = fs::metadata("EN.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&entities_file).lines().count();
     drop(entities_file);
@@ -186,11 +205,13 @@ pub async fn load_entities(db: &SqlitePool) {
     );
     progress_bar.set_message("EN.dat");
 
-    QueryBuilder::new("DELETE FROM entities")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting entities");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM entities")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting entities");
+    }
 
     let chunk_size = BIND_LIMIT / 30;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -250,8 +271,13 @@ pub async fn load_entities(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_headers(db: &SqlitePool) {
-    let headers_file = File::open("HD.dat").expect("Error opening file");
+pub async fn load_headers(db: &SqlitePool, clear_first: bool) {
+    let headers_file = File::open("HD.dat");
+    if headers_file.is_err() {
+        println!("HD.dat not found, skipping");
+        return;
+    }
+    let headers_file = headers_file.unwrap();
     // let headers_file_meta = fs::metadata("HD.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&headers_file).lines().count();
     drop(headers_file);
@@ -274,11 +300,13 @@ pub async fn load_headers(db: &SqlitePool) {
     );
     progress_bar.set_message("HD.dat");
 
-    QueryBuilder::new("DELETE FROM headers")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting headers");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM headers")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting headers");
+    }
 
     let chunk_size = BIND_LIMIT / 60;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -367,8 +395,13 @@ pub async fn load_headers(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_history(db: &SqlitePool) {
-    let history_file = File::open("HS.dat").expect("Error opening file");
+pub async fn load_history(db: &SqlitePool, clear_first: bool) {
+    let history_file = File::open("HS.dat");
+    if history_file.is_err() {
+        println!("No HS.dat file found, skipping");
+        return;
+    }
+    let history_file = history_file.unwrap();
     // let history_file_meta = fs::metadata("HS.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&history_file).lines().count();
     drop(history_file);
@@ -391,11 +424,13 @@ pub async fn load_history(db: &SqlitePool) {
     );
     progress_bar.set_message("HS.dat");
 
-    QueryBuilder::new("DELETE FROM history")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting history");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM history")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting history");
+    }
 
     let chunk_size = BIND_LIMIT / 6;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -431,8 +466,13 @@ pub async fn load_history(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_license_attachments(db: &SqlitePool) {
-    let attachments_file = File::open("LA.dat").expect("Error opening file");
+pub async fn load_license_attachments(db: &SqlitePool, clear_first: bool) {
+    let attachments_file = File::open("LA.dat");
+    if attachments_file.is_err() {
+        println!("No LA.dat file found, skipping");
+        return;
+    }
+    let attachments_file = attachments_file.unwrap();
     // let attachments_file_meta = fs::metadata("LA.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&attachments_file).lines().count();
     drop(attachments_file);
@@ -455,11 +495,13 @@ pub async fn load_license_attachments(db: &SqlitePool) {
     );
     progress_bar.set_message("LA.dat");
 
-    QueryBuilder::new("DELETE FROM license_attachments")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting license_attachments");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM license_attachments")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting license_attachments");
+    }
 
     let chunk_size = BIND_LIMIT / 8;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -499,8 +541,13 @@ pub async fn load_license_attachments(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_special_conditions(db: &SqlitePool) {
-    let conditions_file = File::open("SC.dat").expect("Error opening file");
+pub async fn load_special_conditions(db: &SqlitePool, clear_first: bool) {
+    let conditions_file = File::open("SC.dat");
+    if conditions_file.is_err() {
+        println!("No SC.dat file found, skipping");
+        return;
+    }
+    let conditions_file = conditions_file.unwrap();
     // let conditions_file_meta = fs::metadata("SC.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&conditions_file).lines().count();
     drop(conditions_file);
@@ -523,11 +570,13 @@ pub async fn load_special_conditions(db: &SqlitePool) {
     );
     progress_bar.set_message("SC.dat");
 
-    QueryBuilder::new("DELETE FROM special_conditions")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting special_conditions");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM special_conditions")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting special_conditions");
+    }
 
     let chunk_size = BIND_LIMIT / 9;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -568,8 +617,13 @@ pub async fn load_special_conditions(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_special_conditions_free_form(db: &SqlitePool) {
-    let conditions_file = File::open("SF.dat").expect("Error opening file");
+pub async fn load_special_conditions_free_form(db: &SqlitePool, clear_first: bool) {
+    let conditions_file = File::open("SF.dat");
+    if conditions_file.is_err() {
+        println!("No SF.dat file found, skipping");
+        return;
+    }
+    let conditions_file = conditions_file.unwrap();
     // let conditions_file_meta = fs::metadata("SF.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&conditions_file).lines().count();
     drop(conditions_file);
@@ -592,11 +646,13 @@ pub async fn load_special_conditions_free_form(db: &SqlitePool) {
     );
     progress_bar.set_message("SF.dat");
 
-    QueryBuilder::new("DELETE FROM special_conditions_free_form")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting special_conditions_free_form");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM special_conditions_free_form")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting special_conditions_free_form");
+    }
 
     let chunk_size = BIND_LIMIT / 11;
     for chunk in &reader.records().chunks(chunk_size) {
@@ -639,8 +695,13 @@ pub async fn load_special_conditions_free_form(db: &SqlitePool) {
     progress_bar.finish();
 }
 
-pub async fn load_special_condition_codes(db: &SqlitePool) {
-    let codes_file = File::open("special_condition_codes.txt").expect("Error opening file");
+pub async fn load_special_condition_codes(db: &SqlitePool, clear_first: bool) {
+    let codes_file = File::open("special_condition_codes.txt");
+    if codes_file.is_err() {
+        println!("No special_condition_codes.txt file found, skipping");
+        return;
+    }
+    let codes_file = codes_file.unwrap();
     // let history_file_meta = fs::metadata("special_condition_codes.txt").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&codes_file).lines().count();
     drop(codes_file);
@@ -663,11 +724,13 @@ pub async fn load_special_condition_codes(db: &SqlitePool) {
     );
     progress_bar.set_message("special_condition_codes.txt");
 
-    QueryBuilder::new("DELETE FROM special_condition_codes")
-        .build()
-        .execute(&mut transaction)
-        .await
-        .expect("Error deleting special_condition_codes");
+    if clear_first {
+        QueryBuilder::new("DELETE FROM special_condition_codes")
+            .build()
+            .execute(&mut transaction)
+            .await
+            .expect("Error deleting special_condition_codes");
+    }
 
     let chunk_size = BIND_LIMIT / 4;
     for chunk in &reader.records().chunks(chunk_size) {

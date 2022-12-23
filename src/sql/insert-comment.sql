@@ -1,4 +1,4 @@
-INSERT INTO comments (
+INSERT OR REPLACE INTO comments (
         record_type,
         unique_system_identifier,
         uls_file_number,

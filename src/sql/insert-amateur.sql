@@ -1,4 +1,4 @@
-INSERT INTO amateurs (
+INSERT OR REPLACE INTO amateurs (
         record_type,
         unique_system_identifier,
         uls_file_number,

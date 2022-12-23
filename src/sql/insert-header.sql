@@ -1,4 +1,4 @@
-INSERT INTO headers (
+INSERT OR REPLACE INTO headers (
         record_type,
         unique_system_identifier,
         uls_file_number,

@@ -1,4 +1,4 @@
-INSERT INTO history (
+INSERT OR REPLACE INTO history (
         record_type,
         unique_system_identifier,
         uls_file_number,
