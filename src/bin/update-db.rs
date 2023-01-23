@@ -3,13 +3,8 @@ use regex::Regex;
 use sqlx::sqlite::SqlitePool;
 use std::{fs, os::unix::prelude::MetadataExt, time::Duration};
 
-mod fcc_date;
-mod file;
-mod load;
-mod meta;
-mod types;
-use file::{download_file, unzip_file};
-use types::Update;
+use artemis::{meta, load, Update};
+use artemis::file::{unzip_file, download_file};
 
 const WEEKLY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip";
 const SUNDAY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/daily/l_am_sun.zip";
@@ -159,20 +154,6 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
 
 
 async fn load_daily(url: &str, db: &SqlitePool) -> chrono::DateTime<Utc> {
-    let parse_file_name_from_url = |url: &str| {
-        let output_file_name_regex = Regex::new(r"/(\w+\.?\w*)").expect("Error constructing regex");
-        let Some(file_name_captures) = output_file_name_regex.captures_iter(url).last() else {
-            panic!("Error parsing file name from URL");
-        };
-        let Some(maybe_match) = file_name_captures.iter().last() else {
-            panic!("Error parsing file name from URL");
-        };
-        let Some(file_name_match) = maybe_match else {
-            panic!("Error parsing file name from URL");
-        };
-        String::from(file_name_match.as_str())
-    };
-
     let output_file =
         download_file(url, None).expect("Error downloading weekly dump file");
 
