@@ -18,7 +18,7 @@ use std::io::{Read, Write};
 /// ```
 /// download_file("https://data.fcc.gov/download/pub/uls/complete/l_amat.zip", None);
 /// ```
-pub fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
+pub fn download_file(url: &str, file_name: Option<&str>) -> anyhow::Result<File> {
     let resp = ureq::get(url).call().expect("Error downloading file");
 
     // We can work on handling not having a Content-Length header later
@@ -151,7 +151,7 @@ pub fn download_file(url: &str, file_name: Option<&str>) -> Result<File, ()> {
     Ok(fs::File::open(&output_file_name).expect("Error opening output file"))
 }
 
-pub fn unzip_file(zip_file: &File) -> Result<(), ()> {
+pub fn unzip_file(zip_file: &File) -> anyhow::Result<()> {
     let mut archive = zip::ZipArchive::new(zip_file).expect("Error opening zip archive");
 
     let progress_bar = ProgressBar::new(archive.len().try_into().unwrap());
