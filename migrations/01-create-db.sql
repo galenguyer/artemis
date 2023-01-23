@@ -1,5 +1,3 @@
-.echo on
-
 CREATE TABLE IF NOT EXISTS updates (
   id INTEGER PRIMARY KEY,
   daily BOOLEAN NOT NULL,

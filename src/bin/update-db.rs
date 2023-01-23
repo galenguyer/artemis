@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use regex::Regex;
-use sqlx::sqlite::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
+use std::str::FromStr;
 use std::{fs, os::unix::prelude::MetadataExt, time::Duration};
 
-use artemis::{meta, load, Update};
-use artemis::file::{unzip_file, download_file};
+use artemis::file::{download_file, unzip_file};
+use artemis::{load, meta, Update};
 
 const WEEKLY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip";
 const SUNDAY_DUMP_URL: &str = "https://data.fcc.gov/download/pub/uls/daily/l_am_sun.zip";
@@ -134,6 +135,8 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
     )
     .expect("Error writing file");
 
+    artemis::db::delete_indexes(db).await.expect("Error deleting indexes");
+
     load::load_amateurs(db, true).await;
     load::load_comments(db, true).await;
     load::load_entities(db, true).await;
@@ -145,6 +148,8 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
 
     load::load_special_condition_codes(db, true).await;
 
+    artemis::db::create_indexes(db).await.expect("Error creating indexes");
+
     let meta = output_file.metadata().unwrap();
     // std::fs::remove_file("l_amat.zip").expect("Error deleting l_amat.zip");
     DateTime::<Utc>::from(
@@ -152,10 +157,8 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
     )
 }
 
-
 async fn load_daily(url: &str, db: &SqlitePool) -> chrono::DateTime<Utc> {
-    let output_file =
-        download_file(url, None).expect("Error downloading weekly dump file");
+    let output_file = download_file(url, None).expect("Error downloading weekly dump file");
 
     unzip_file(&output_file).expect("Error unzipping file");
     std::fs::remove_file("counts").expect("Error deleting counts file");
@@ -180,9 +183,15 @@ async fn load_daily(url: &str, db: &SqlitePool) -> chrono::DateTime<Utc> {
 
 #[tokio::main]
 async fn main() {
-    let db = SqlitePool::connect("sqlite://fcc.db")
-        .await
-        .expect("Error connecting to database");
+    let db = SqlitePool::connect_with(
+        SqliteConnectOptions::from_str("sqlite://fcc.db")
+            .expect("improperly formatted sqlite connection string, somehow")
+            .create_if_missing(true),
+    )
+    .await
+    .expect("Error connecting to database");
+
+    artemis::db::create_db(&db).await.expect("Error creating database");
 
     let fcc_updates = dbg!(FccUpdates::new());
 
