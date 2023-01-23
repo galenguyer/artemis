@@ -127,16 +127,6 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
     unzip_file(&output_file).expect("Error unzipping file");
     std::fs::remove_file("counts").expect("Error deleting counts file");
 
-    // Some idiot at the FCC decided that unescaped newlines in the middle of a field were cool
-    // Uncle Ted may have had some good ideas after all
-    let comments_regex = Regex::new(r"\s*\r\r\n").unwrap();
-    let comments = fs::read_to_string("CO.dat").expect("Error reading file");
-    fs::write(
-        "CO.dat",
-        comments_regex.replace_all(&comments, " ").to_string(),
-    )
-    .expect("Error writing file");
-
     // This is somehow worse, newlines can either be \n (more common) OR \r\n.
     // The first one is easy, if there's a newline without a preceeding carriage return, it's bad and should be gone
     // CRLF is what's normally used, however the last character of every entry is either R, P, T, or |, so if there's a CRLF
@@ -188,16 +178,6 @@ async fn load_daily(url: &str, db: &SqlitePool) -> chrono::DateTime<Utc> {
 
     unzip_file(&output_file).expect("Error unzipping file");
     std::fs::remove_file("counts").expect("Error deleting counts file");
-
-    // Some idiot at the FCC decided that unescaped newlines in the middle of a field were cool
-    // Uncle Ted may have had some good ideas after all
-    let comments_regex = Regex::new(r"\s*\r\r\n").unwrap();
-    let comments = fs::read_to_string("CO.dat").expect("Error reading file");
-    fs::write(
-        "CO.dat",
-        comments_regex.replace_all(&comments, " ").to_string(),
-    )
-    .expect("Error writing file");
 
     load::load_amateurs(db, false).await;
     load::load_comments(db, false).await;

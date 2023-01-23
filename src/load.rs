@@ -5,6 +5,8 @@ use itertools::Itertools;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use std::fs::File;
 use std::io::BufRead;
+use regex::Regex;
+use std::fs;
 
 const INSERT_AMATEUR_SQL: &str = include_str!("sql/insert-amateur.sql");
 const INSERT_COMMENT_SQL: &str = include_str!("sql/insert-comment.sql");
@@ -109,7 +111,18 @@ pub async fn load_comments(db: &SqlitePool, clear_first: bool) {
         println!("CO.dat not found, skipping");
         return;
     }
-    let comments_file = comments_file.unwrap();
+
+    // Some idiot at the FCC decided that unescaped newlines in the middle of a field were cool
+    // Uncle Ted may have had some good ideas after all
+    let comments_regex = Regex::new(r"\s*\r\r\n").unwrap();
+    let comments = fs::read_to_string("CO.dat").expect("Error reading file");
+    fs::write(
+        "CO.dat",
+        comments_regex.replace_all(&comments, " ").to_string(),
+    )
+    .expect("Error writing file");
+
+    let comments_file = File::open("CO.dat").unwrap();
     // let comments_file_meta = fs::metadata("CO.dat").expect("Error getting file metadata");
     let line_count = std::io::BufReader::new(&comments_file).lines().count();
     drop(comments_file);
