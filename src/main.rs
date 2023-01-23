@@ -103,7 +103,7 @@ fn get_last_updated_header(url: &str) -> Option<DateTime<Utc>> {
         .unwrap_or(0);
 
     // This is the size given when there's no updates
-    if len <= 211 {
+    if len <= 212 {
         return None;
     }
 
