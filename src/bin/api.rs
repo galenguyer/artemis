@@ -148,14 +148,15 @@ async fn query_search(
         JOIN headers
             ON amateurs.unique_system_identifier = headers.unique_system_identifier
         WHERE
-            entities.frn IN (
-                SELECT frn
+            entities.unique_system_identifier IN (
+                SELECT unique_system_identifier
                 FROM entities
                 WHERE
                     (?1 IS NULL OR call_sign LIKE ?1)
                     AND (?2 IS NULL OR first_name LIKE ?2)
                     AND (?3 IS NULL OR last_name LIKE ?3)
             )
+            AND frn != ''
         GROUP BY entities.frn
         ORDER BY headers.grant_date DESC
         LIMIT ?4"#;
