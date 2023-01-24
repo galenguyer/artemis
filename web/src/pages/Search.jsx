@@ -7,7 +7,7 @@ export default function Search() {
   const [results, setResults] = useState([]);
   const [abortController, setAbortController] = useState(null);
 
-  const search = debounce(() => {
+  const search = () => {
     let params = new URLSearchParams();
     if (document.getElementById("callsign").value) {
       params.append("call_sign", document.getElementById("callsign").value);
@@ -38,7 +38,7 @@ export default function Search() {
           console.log(err);
         }
       });
-  }, 300);
+  };
 
   return (
     <div className="Callsign">

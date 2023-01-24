@@ -14,7 +14,7 @@ export default function Callsign() {
         console.log(data);
         setResults(data);
       })
-  }, 200);
+  }, 250);
 
   return (
     <div className="Callsign">
