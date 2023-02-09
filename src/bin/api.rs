@@ -148,8 +148,8 @@ async fn query_search(
         JOIN headers
             ON amateurs.unique_system_identifier = headers.unique_system_identifier
         WHERE
-            entities.unique_system_identifier IN (
-                SELECT unique_system_identifier
+            entities.frn IN (
+                SELECT frn
                 FROM entities
                 WHERE
                     (?1 IS NULL OR call_sign LIKE ?1)
