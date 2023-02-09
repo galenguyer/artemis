@@ -10,3 +10,6 @@ counts
 # Generated files
 *.db
 *.db.zst
+
+# configuration files
+.env

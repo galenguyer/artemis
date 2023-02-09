@@ -3,7 +3,7 @@
 use crate::fcc_date;
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use sqlx::FromRow;
 
 #[derive(Debug, Deserialize, FromRow)]
@@ -14,26 +14,26 @@ pub struct Update {
     pub date: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Amateur<'a> {
-    pub RecordType: &'a str,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Amateur {
+    pub RecordType: String,
     pub UniqueSystemIdentifier: u32,
-    pub UlsFileNumber: &'a str,
-    pub EBFNumber: &'a str,
-    pub CallSign: &'a str,
-    pub OperatorClass: &'a str,
-    pub GroupCode: &'a str,
-    pub RegionCode: &'a str,
-    pub TrusteeCallSign: &'a str,
-    pub TrusteeIndicator: &'a str,
-    pub PhysicianCertification: &'a str,
-    pub VESignature: &'a str,
-    pub SystematicCallSignChange: &'a str,
-    pub VanityCallSignChange: &'a str,
-    pub VanityRelationship: &'a str,
-    pub PreviousCallSign: &'a str,
-    pub PreviousOperatorClass: &'a str,
-    pub TrusteeName: &'a str,
+    pub UlsFileNumber: String,
+    pub EBFNumber: String,
+    pub CallSign: String,
+    pub OperatorClass: String,
+    pub GroupCode: String,
+    pub RegionCode: String,
+    pub TrusteeCallSign: String,
+    pub TrusteeIndicator: String,
+    pub PhysicianCertification: String,
+    pub VESignature: String,
+    pub SystematicCallSignChange: String,
+    pub VanityCallSignChange: String,
+    pub VanityRelationship: String,
+    pub PreviousCallSign: String,
+    pub PreviousOperatorClass: String,
+    pub TrusteeName: String,
 }
 
 #[derive(Debug, Deserialize)]

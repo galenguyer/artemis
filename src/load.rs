@@ -2,11 +2,11 @@ use crate::types::*;
 use csv::StringRecord;
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
+use regex::Regex;
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
+use std::fs;
 use std::fs::File;
 use std::io::BufRead;
-use regex::Regex;
-use std::fs;
 
 const INSERT_AMATEUR_SQL: &str = include_str!("sql/insert-amateur.sql");
 const INSERT_COMMENT_SQL: &str = include_str!("sql/insert-comment.sql");
@@ -22,7 +22,7 @@ const INSERT_SPECIAL_CONDITION_CODE_SQL: &str =
 
 const BIND_LIMIT: usize = 32766;
 
-pub async fn load_amateurs(db: &SqlitePool, clear_first: bool) {
+pub async fn load_amateurs(db: &SqlitePool, meili: &meilisearch_sdk::Client, clear_first: bool) {
     let amateurs_file = File::open("AM.dat");
     if amateurs_file.is_err() {
         println!("AM.dat not found, skipping");
@@ -51,56 +51,29 @@ pub async fn load_amateurs(db: &SqlitePool, clear_first: bool) {
     );
     progress_bar.set_message("AM.dat");
 
-    if clear_first {
-        QueryBuilder::new("DELETE FROM amateurs")
-            .build()
-            .execute(&mut transaction)
-            .await
-            .expect("Error deleting amateurs");
-    }
+    // if clear_first {
+    //     QueryBuilder::new("DELETE FROM amateurs")
+    //         .build()
+    //         .execute(&mut transaction)
+    //         .await
+    //         .expect("Error deleting amateurs");
+    // }
 
-    let chunk_size = BIND_LIMIT / 18;
-    for chunk in &reader.records().chunks(chunk_size) {
-        let chunk = chunk.collect::<Result<Vec<StringRecord>, _>>().unwrap();
-        let chunk = chunk.iter();
+    let amatuers: Vec<Amateur> = reader.records().map(|record| {
+        record.unwrap().deserialize::<Amateur>(None).unwrap()
+    }).collect();
 
-        let mut query_builder: QueryBuilder<Sqlite> = QueryBuilder::new(INSERT_AMATEUR_SQL);
+    // transaction
+    //     .commit()
+    //     .await
+    //     .expect("Error committing transaction");
 
-        query_builder.push_values(chunk, |mut builder, entry| {
-            let amateur: Amateur = entry.deserialize(None).expect("Error deserializing entry");
-            builder
-                .push_bind(amateur.RecordType)
-                .push_bind(amateur.UniqueSystemIdentifier)
-                .push_bind(amateur.UlsFileNumber)
-                .push_bind(amateur.EBFNumber)
-                .push_bind(amateur.CallSign)
-                .push_bind(amateur.OperatorClass)
-                .push_bind(amateur.GroupCode)
-                .push_bind(amateur.RegionCode)
-                .push_bind(amateur.TrusteeCallSign)
-                .push_bind(amateur.TrusteeIndicator)
-                .push_bind(amateur.PhysicianCertification)
-                .push_bind(amateur.VESignature)
-                .push_bind(amateur.SystematicCallSignChange)
-                .push_bind(amateur.VanityCallSignChange)
-                .push_bind(amateur.VanityRelationship)
-                .push_bind(amateur.PreviousCallSign)
-                .push_bind(amateur.PreviousOperatorClass)
-                .push_bind(amateur.TrusteeName);
-        });
-
-        query_builder
-            .build()
-            .execute(&mut transaction)
-            .await
-            .expect("Error executing query");
-        progress_bar.set_position(progress_bar.position() + chunk_size as u64);
-    }
-
-    transaction
-        .commit()
+    let meili_task = meili
+        .index("amateurs")
+        .add_documents(&amatuers, Some("UniqueSystemIdentifier"))
         .await
-        .expect("Error committing transaction");
+        .unwrap();
+    dbg!(meili_task);
     std::fs::remove_file("AM.dat").expect("Error deleting AM.dat");
     progress_bar.finish();
 }

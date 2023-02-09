@@ -112,7 +112,7 @@ fn get_last_updated_header(url: &str) -> Option<DateTime<Utc>> {
     }
 }
 
-async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
+async fn load_weekly(db: &SqlitePool, meili: &meilisearch_sdk::Client) -> chrono::DateTime<Utc> {
     let output_file =
         download_file(WEEKLY_DUMP_URL, None).expect("Error downloading weekly dump file");
     // Hardcoding this file name because it might change and I don't want to deal with that
@@ -137,7 +137,7 @@ async fn load_weekly(db: &SqlitePool) -> chrono::DateTime<Utc> {
 
     artemis::db::delete_indexes(db).await.expect("Error deleting indexes");
 
-    load::load_amateurs(db, true).await;
+    load::load_amateurs(db, meili, true).await;
     load::load_comments(db, true).await;
     load::load_entities(db, true).await;
     load::load_headers(db, true).await;
@@ -163,7 +163,7 @@ async fn load_daily(url: &str, db: &SqlitePool) -> chrono::DateTime<Utc> {
     unzip_file(&output_file).expect("Error unzipping file");
     std::fs::remove_file("counts").expect("Error deleting counts file");
 
-    load::load_amateurs(db, false).await;
+    // load::load_amateurs(db, false).await;
     load::load_comments(db, false).await;
     load::load_entities(db, false).await;
     load::load_headers(db, false).await;
@@ -190,6 +190,7 @@ async fn main() {
     )
     .await
     .expect("Error connecting to database");
+    let meili = meilisearch_sdk::Client::new("http://localhost:7700", env!("MEILISEARCH_MASTER_KEY"));
 
     artemis::db::create_db(&db).await.expect("Error creating database");
 
@@ -203,7 +204,7 @@ async fn main() {
     if let Some(last_weekly) = last_weekly {
         if fcc_updates.weekly.is_some() && fcc_updates.weekly.unwrap() > last_weekly.date {
             println!("New weekly update found, loading weekly dump");
-            let update_date = load_weekly(&db).await;
+            let update_date = load_weekly(&db, &meili).await;
             meta::insert_update(
                 &db,
                 &Update {
@@ -218,7 +219,7 @@ async fn main() {
         }
     } else {
         println!("No weekly updates found, loading weekly dump");
-        let update_date = load_weekly(&db).await;
+        let update_date = load_weekly(&db, &meili).await;
         meta::insert_update(
             &db,
             &Update {
