@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 use std::sync::Arc;
 
-static FILE_DIR: include_dir::Dir<'static> =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/web/dist");
+// static FILE_DIR: include_dir::Dir<'static> =
+//     include_dir::include_dir!("$CARGO_MANIFEST_DIR/web/dist");
 
 #[tokio::main]
 async fn main() {
@@ -27,7 +27,7 @@ async fn main() {
     let app = Router::new()
         .route("/api/v1/call/:call_sign", get(get_by_call_sign))
         .route("/api/v1/search", get(search))
-        .fallback(static_path)
+        // .fallback(static_path)
         .layer(Extension(db));
 
     println!("binding to 0.0.0.0:3000");
@@ -37,41 +37,41 @@ async fn main() {
         .unwrap();
 }
 
-async fn static_path(uri: Uri) -> impl IntoResponse {
-    let path = uri.path().trim_start_matches('/');
-    let mime_type = mime_guess::from_path(path).first_or_text_plain();
+// async fn static_path(uri: Uri) -> impl IntoResponse {
+//     let path = uri.path().trim_start_matches('/');
+//     let mime_type = mime_guess::from_path(path).first_or_text_plain();
 
-    match FILE_DIR.get_file(path) {
-        None => {
-            // Try to serve index.html if the file doesn't exist
-            match FILE_DIR.get_file("index.html") {
-                Some(file) => {
-                    return Response::builder()
-                        .status(StatusCode::OK)
-                        .header(
-                            axum::http::header::CONTENT_TYPE,
-                            axum::http::HeaderValue::from_str(mime::TEXT_HTML_UTF_8.essence_str())
-                                .unwrap(),
-                        )
-                        .body(axum::body::boxed(axum::body::Full::from(file.contents())))
-                        .unwrap();
-                }
-                None => Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(axum::body::boxed(axum::body::Empty::new()))
-                    .unwrap(),
-            }
-        }
-        Some(file) => Response::builder()
-            .status(StatusCode::OK)
-            .header(
-                axum::http::header::CONTENT_TYPE,
-                axum::http::HeaderValue::from_str(mime_type.as_ref()).unwrap(),
-            )
-            .body(axum::body::boxed(axum::body::Full::from(file.contents())))
-            .unwrap(),
-    }
-}
+//     match FILE_DIR.get_file(path) {
+//         None => {
+//             // Try to serve index.html if the file doesn't exist
+//             match FILE_DIR.get_file("index.html") {
+//                 Some(file) => {
+//                     return Response::builder()
+//                         .status(StatusCode::OK)
+//                         .header(
+//                             axum::http::header::CONTENT_TYPE,
+//                             axum::http::HeaderValue::from_str(mime::TEXT_HTML_UTF_8.essence_str())
+//                                 .unwrap(),
+//                         )
+//                         .body(axum::body::boxed(axum::body::Full::from(file.contents())))
+//                         .unwrap();
+//                 }
+//                 None => Response::builder()
+//                     .status(StatusCode::NOT_FOUND)
+//                     .body(axum::body::boxed(axum::body::Empty::new()))
+//                     .unwrap(),
+//             }
+//         }
+//         Some(file) => Response::builder()
+//             .status(StatusCode::OK)
+//             .header(
+//                 axum::http::header::CONTENT_TYPE,
+//                 axum::http::HeaderValue::from_str(mime_type.as_ref()).unwrap(),
+//             )
+//             .body(axum::body::boxed(axum::body::Full::from(file.contents())))
+//             .unwrap(),
+//     }
+// }
 
 async fn get_by_call_sign(
     Extension(db): Extension<Arc<SqlitePool>>,
@@ -116,13 +116,43 @@ struct CallSign {
     call_history: String,
 }
 async fn query_call_sign(db: &SqlitePool, call_sign: String) -> Result<Vec<CallSign>, sqlx::Error> {
-    let query_str = "SELECT amateurs.call_sign, amateurs.operator_class, entities.first_name, entities.mi, entities.last_name, entities.city, entities.state, headers.license_status, headers.grant_date, headers.expired_date, headers.cancellation_date FROM amateurs JOIN entities ON amateurs.unique_system_identifier = entities.unique_system_identifier JOIN headers ON amateurs.unique_system_identifier = headers.unique_system_identifier WHERE amateurs.call_sign = ? ORDER BY headers.grant_date DESC";
+    let query_str = "SELECT
+            amateurs.call_sign,
+            amateurs.operator_class,
+            entities.frn,
+            entities.first_name,
+            entities.mi,
+            entities.last_name,
+            entities.city,
+            entities.state,
+            headers.license_status,
+            MAX(headers.grant_date) AS grant_date,
+            headers.expired_date,
+            headers.cancellation_date,
+            count(amateurs.call_sign) AS call_count,
+            group_concat(amateurs.call_sign, ',') AS call_history
+        FROM entities
+        JOIN amateurs
+            ON amateurs.unique_system_identifier = entities.unique_system_identifier
+        JOIN headers
+            ON amateurs.unique_system_identifier = headers.unique_system_identifier
+        WHERE
+            entities.frn IN (
+                SELECT frn
+                FROM entities
+                WHERE call_sign = ?1
+            )
+            AND frn != ''
+        GROUP BY entities.frn
+        ORDER BY headers.grant_date DESC";
+
     let result = sqlx::query_as::<_, CallSign>(query_str)
         .bind(call_sign)
         .fetch_all(db)
         .await?;
     Ok(result)
 }
+
 async fn query_search(
     db: &SqlitePool,
     search_params: SearchParams,
